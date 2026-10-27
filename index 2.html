@@ -1,0 +1,615 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cosmetic Compound Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;500;600&family=Spectral:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF3F2; --panel:#FFFFFF; --ink:#14262B; --muted:#5B6E72;
+    --line:#D3DEDC; --accent:#0F6B6B; --accent-ink:#FFFFFF; --warn:#9A3B2E;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Public Sans",system-ui,sans-serif}
+  header{padding:28px 24px 8px;max-width:1180px;margin:0 auto}
+  h1{font:600 34px/1.15 Spectral,Georgia,serif;margin:0 0 4px}
+  header p{margin:0;color:var(--muted);max-width:60ch}
+  main{max-width:1180px;margin:0 auto;padding:16px 24px 48px;display:grid;grid-template-columns:270px 1fr;gap:20px}
+  @media (max-width:860px){main{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px}
+  aside label{display:block;font-weight:600;font-size:14px;margin:14px 0 4px}
+  aside label:first-child{margin-top:0}
+  select,input[type=text],textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink)}
+  textarea{font:13px/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical;min-height:96px}
+  input[type=range]{width:100%}
+  .check{display:flex;gap:8px;align-items:center;font-weight:400;margin:12px 0 0}
+  .check input{width:auto}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--line);margin-bottom:16px}
+  .tabs button{font:inherit;font-weight:500;background:none;border:0;padding:9px 14px;cursor:pointer;color:var(--muted);border-bottom:3px solid transparent}
+  .tabs button[aria-selected=true]{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab{display:none}.tab.active{display:block}
+  h2{font:600 24px/1.2 Spectral,Georgia,serif;margin:0 0 6px}
+  h3{font:600 17px/1.3 "Public Sans",sans-serif;margin:0 0 8px}
+  .facts{color:var(--muted);margin:0 0 14px}
+  .facts b{color:var(--ink)}
+  .views{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media (max-width:1000px){.views{grid-template-columns:1fr}}
+  .viewbox{border:1px solid var(--line);border-radius:8px;background:#fff;min-height:300px;display:flex;align-items:center;justify-content:center;overflow:auto;position:relative}
+  #v3d{width:100%;height:450px;position:relative}
+  .note{font-size:13px;color:var(--muted);margin:8px 0 0}
+  .note.err{color:var(--warn)}
+  .id-row{margin:0 0 12px}
+  .id-row span{display:block;font-weight:600;font-size:14px;margin-bottom:3px}
+  code.block{display:block;background:#F4F8F7;border:1px solid var(--line);border-radius:6px;padding:8px 10px;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;word-break:break-all;white-space:pre-wrap}
+  .tablewrap{overflow-x:auto}
+  table{border-collapse:collapse;width:100%;font-size:14.5px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-weight:600;background:#F4F8F7}
+  .btn{font:inherit;font-weight:500;background:var(--accent);color:var(--accent-ink);border:0;border-radius:6px;padding:8px 14px;cursor:pointer;margin-top:12px}
+  .btn.alt{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .bars{margin-top:18px}
+  .bar{display:grid;grid-template-columns:130px 1fr 80px;gap:10px;align-items:center;margin:6px 0;font-size:14px}
+  .bar i{display:block;height:16px;background:var(--accent);border-radius:3px}
+  pre.report{white-space:pre-wrap;background:#F4F8F7;border:1px solid var(--line);border-radius:8px;padding:14px;font:13.5px/1.5 ui-monospace,Menlo,Consolas,monospace}
+  .picker{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+  .chip{display:flex;gap:5px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;cursor:pointer}
+  .btn.sm{padding:4px 10px;font-size:13px;margin:0 6px 12px 0}
+  .loading{color:var(--muted);padding:20px;text-align:center}
+</style>
+</head>
+<body>
+<header>
+  <h1>Cosmetic Compound Explorer</h1>
+  <p>Explore 30+ cosmetic ingredients, or look up any compound by name: 2D and 3D structures, identifiers and calculated properties.</p>
+</header>
+
+<main>
+  <aside class="panel" aria-label="Options">
+    <label for="compound">Compound</label>
+    <select id="compound"></select>
+
+    <label for="search">Add any compound from PubChem</label>
+    <input type="text" id="search" placeholder="e.g. panthenol, retinal">
+    <button class="btn" id="addBtn" type="button" style="margin-top:8px">Look up and add</button>
+
+    <label for="smiles">SMILES (editable)</label>
+    <textarea id="smiles" spellcheck="false"></textarea>
+
+    <label for="size">2D image size: <span id="sizeVal">450</span> px</label>
+    <input id="size" type="range" min="250" max="800" value="450">
+
+    <label class="check"><input id="atomIdx" type="checkbox"> Show atom numbers in 2D</label>
+
+    <label for="style">3D style</label>
+    <select id="style">
+      <option value="stick">Stick</option>
+      <option value="sphere">Sphere</option>
+      <option value="line">Line</option>
+      <option value="ballstick">Ball and stick</option>
+    </select>
+
+    <label for="color">3D colouring</label>
+    <select id="color">
+      <option value="element">By element</option>
+      <option value="single">Single colour</option>
+    </select>
+
+    <label class="check"><input id="spin" type="checkbox"> Spin 3D model</label>
+  </aside>
+
+  <section class="panel" aria-live="polite">
+    <div class="tabs" role="tablist">
+      <button role="tab" aria-selected="true"  data-tab="structure">2D / 3D structure</button>
+      <button role="tab" aria-selected="false" data-tab="ids">Identifiers</button>
+      <button role="tab" aria-selected="false" data-tab="props">Properties</button>
+      <button role="tab" aria-selected="false" data-tab="compare">Comparison</button>
+      <button role="tab" aria-selected="false" data-tab="report">Project report</button>
+    </div>
+
+    <div id="status" class="note"></div>
+
+    <div class="tab active" id="tab-structure">
+      <h2 id="title"></h2>
+      <p class="facts" id="facts"></p>
+      <div class="views">
+        <div>
+          <h3>2D structure</h3>
+          <div class="viewbox" id="v2d"><div class="loading">Loading chemistry engine…</div></div>
+          <button class="btn alt" id="dl2d" type="button">Download 2D (.svg)</button>
+        </div>
+        <div>
+          <h3>3D structure</h3>
+          <div class="viewbox"><div id="v3d"></div></div>
+          <p class="note" id="note3d"></p>
+          <button class="btn alt" id="dl3d" type="button" disabled>Download 3D (.sdf)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab" id="tab-ids"><div id="idsBody"></div></div>
+
+    <div class="tab" id="tab-props">
+      <div class="tablewrap"><table id="propsTable"></table></div>
+      <button class="btn" id="dlProps" type="button">Download properties (CSV)</button>
+    </div>
+
+    <div class="tab" id="tab-compare">
+      <h2>Side-by-side comparison</h2>
+      <p class="note">Tick the compounds to compare. The report tab uses the same selection.</p>
+      <button class="btn alt sm" id="selAll" type="button">Select all</button><button class="btn alt sm" id="selNone" type="button">Clear</button>
+      <div class="picker" id="picker"></div>
+      <div class="tablewrap"><table id="cmpTable"></table></div>
+      <div class="bars" id="bars"></div>
+      <button class="btn" id="dlCmp" type="button">Download comparison (CSV)</button>
+    </div>
+
+    <div class="tab" id="tab-report">
+      <h2>Auto-generated project report</h2>
+      <label for="student" style="font-weight:600;font-size:14px">Student name(s)</label>
+      <input type="text" id="student">
+      <label for="course" style="font-weight:600;font-size:14px;display:block;margin-top:10px">Course / Institute</label>
+      <input type="text" id="course">
+      <label for="guide" style="font-weight:600;font-size:14px;display:block;margin-top:10px">Supervisor</label>
+      <input type="text" id="guide">
+      <button class="btn" id="dlReport" type="button">Download report (.md)</button>
+      <pre class="report" id="reportBody" style="margin-top:14px"></pre>
+    </div>
+  </section>
+</main>
+
+<!-- Libraries: loaded from CDNs that GitHub Pages can reach -->
+<script src="https://cdn.jsdelivr.net/npm/3dmol@2.4.2/build/3Dmol-min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@rdkit/rdkit@2024.3.5-1.0.0/Code/MinimalLib/dist/RDKit_minimal.js"></script>
+
+<script>
+"use strict";
+
+/* ---------------- Data ---------------- */
+const COMPOUNDS = {
+  "Bakuchiol": {
+    cat: "Anti-aging", pubchem: "bakuchiol",
+    smiles: "CC(=CCC[C@](C)(C=C)/C=C/C1=CC=C(C=C1)O)C",
+    source: "Seeds of Psoralea corylifolia (babchi)",
+    use: "Plant-derived retinol alternative: anti-aging, antioxidant, evens skin tone",
+    intro: "Bakuchiol is a meroterpene phenol used as a gentler functional alternative to retinol."
+  },
+  "Ectoin": {
+    cat: "Hydration & protection", pubchem: "ectoine",
+    smiles: "CC1=NCCC(N1)C(=O)O",
+    source: "Produced by halophilic bacteria (e.g. Halomonas elongata); also made by fermentation",
+    use: "Moisturiser and cell-protectant: stabilises proteins and membranes, protects against UV and dryness",
+    intro: "Ectoin is a small cyclic amino acid derivative (a compatible solute) that protects cells under stress."
+  },
+  "Madecassoside": {
+    cat: "Soothing & repair", pubchem: "madecassoside",
+    smiles:
+      "C[C@@H]1CC[C@@]2(CC[C@@]3(C)C(=CC[C@@H]4[C@@]5(C)C[C@@H](O)[C@H](O)" +
+      "[C@@](C)(CO)[C@@H]5[C@H](O)C[C@@]34C)[C@@H]2[C@H]1C)C(=O)O[C@@H]1O" +
+      "[C@H](CO[C@@H]2O[C@H](CO)[C@@H](O[C@@H]3O[C@@H](C)[C@H](O)[C@@H](O)" +
+      "[C@H]3O)[C@H](O)[C@H]2O)[C@@H](O)[C@H](O)[C@H]1O",
+    source: "Centella asiatica (gotu kola / cica)",
+    use: "Soothing, wound-healing and anti-inflammatory agent in 'cica' skincare",
+    intro: "Madecassoside is a triterpene saponin (glycoside) that supports skin repair and calms irritation."
+  }
+};
+
+// add(name, category, PubChem name, SMILES, cosmetic role, source)
+function add(n, cat, pubchem, smiles, use, source){
+  COMPOUNDS[n] = {cat, pubchem, smiles, use, source, intro: n + " is a " + cat.toLowerCase() + " ingredient."};
+}
+add("Niacinamide","Brightening","niacinamide","NC(=O)c1cccnc1","Vitamin B3: evens tone, supports the barrier, reduces oil","Synthetic");
+add("Retinol","Anti-aging","retinol","CC1=C(C(CCC1)(C)C)/C=C/C(=C/C=C/C(=C/CO)/C)/C","Vitamin A: boosts renewal and collagen","Synthetic (vitamin A)");
+add("Ascorbic acid","Antioxidant","ascorbic acid","OC[C@H](O)[C@H]1OC(=O)C(O)=C1O","Vitamin C: antioxidant, brightening, collagen support","Citrus / synthetic");
+add("Alpha-tocopherol","Antioxidant","alpha-tocopherol","Cc1c(C)c2OC(C)(CCCC(C)CCCC(C)CCCC(C)C)CCc2c(C)c1O","Vitamin E: lipid-phase antioxidant","Vegetable oils");
+add("Ferulic acid","Antioxidant","ferulic acid","COc1cc(/C=C/C(O)=O)ccc1O","Stabilises vitamins C and E, antioxidant","Rice bran, wheat");
+add("Resveratrol","Antioxidant","resveratrol","Oc1ccc(/C=C/c2cc(O)cc(O)c2)cc1","Polyphenol antioxidant","Grapes");
+add("Caffeine","Antioxidant","caffeine","CN1C=NC2=C1C(=O)N(C(=O)N2C)C","De-puffing, mild antioxidant","Coffee, tea");
+add("Glycerin","Hydration & protection","glycerin","OCC(O)CO","Humectant that draws water into skin","Plant oils / synthetic");
+add("Urea","Hydration & protection","urea","NC(N)=O","Humectant and gentle keratolytic","Synthetic");
+add("Panthenol","Hydration & protection","panthenol","CC(C)(CO)C(O)C(=O)NCCCO","Provitamin B5: moisturising, soothing","Synthetic");
+add("Allantoin","Soothing & repair","allantoin","NC(=O)NC1NC(=O)NC1=O","Soothing, promotes skin smoothing","Comfrey / synthetic");
+add("Squalane","Emollient","squalane","CC(C)CCCC(C)CCCC(C)CCCCC(C)CCCC(C)CCCC(C)C","Lightweight emollient","Olive / sugarcane");
+add("Cetyl alcohol","Emollient","cetyl alcohol","CCCCCCCCCCCCCCCCO","Fatty alcohol: emollient and emulsion thickener","Palm / coconut oil");
+add("Stearic acid","Emollient","stearic acid","CCCCCCCCCCCCCCCCCC(=O)O","Fatty acid: emulsifier and thickener","Vegetable fats");
+add("Salicylic acid","Exfoliant","salicylic acid","OC(=O)c1ccccc1O","Oil-soluble BHA: unclogs pores","Willow bark / synthetic");
+add("Glycolic acid","Exfoliant","glycolic acid","OCC(=O)O","Smallest AHA: exfoliation","Sugarcane / synthetic");
+add("Lactic acid","Exfoliant","lactic acid","CC(O)C(=O)O","Mild AHA: exfoliation and hydration","Fermentation");
+add("Azelaic acid","Brightening","azelaic acid","OC(=O)CCCCCCCC(O)=O","Anti-acne, reduces pigmentation","Grains / synthetic");
+add("Kojic acid","Brightening","kojic acid","OCC1=CC(=O)C(O)=CO1","Tyrosinase inhibitor for pigmentation","Fungal fermentation");
+add("Arbutin","Brightening","arbutin","OC[C@H]1O[C@@H](Oc2ccc(O)cc2)[C@H](O)[C@@H](O)[C@@H]1O","Glycoside tyrosinase inhibitor","Bearberry");
+add("Hydroquinone","Brightening","hydroquinone","Oc1ccc(O)cc1","Depigmenting agent (regulated)","Synthetic");
+add("Tranexamic acid","Brightening","tranexamic acid","NC[C@H]1CC[C@H](CC1)C(O)=O","Reduces melasma and dark spots","Synthetic");
+add("Menthol","Soothing & repair","menthol","CC(C)[C@@H]1CC[C@@H](C)C[C@H]1O","Cooling sensate","Peppermint oil");
+add("Oxybenzone","UV filter","oxybenzone","COc1ccc(C(=O)c2ccccc2)c(O)c1","Organic UVB/UVA filter (benzophenone-3)","Synthetic");
+add("Avobenzone","UV filter","avobenzone","COc1ccc(cc1)C(=O)CC(=O)c1ccc(cc1)C(C)(C)C","Organic UVA filter","Synthetic");
+add("Phenoxyethanol","Preservative","phenoxyethanol","OCCOc1ccccc1","Broad-spectrum preservative","Synthetic");
+add("Methylparaben","Preservative","methylparaben","COC(=O)c1ccc(O)cc1","Preservative against mould and bacteria","Synthetic");
+
+const PUG = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/";
+const selected = new Set(["Bakuchiol","Ectoin","Madecassoside","Niacinamide"]);
+const esc = t => String(t).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const RDKIT_BASE = "https://cdn.jsdelivr.net/npm/@rdkit/rdkit@2024.3.5-1.0.0/Code/MinimalLib/dist/";
+const $ = id => document.getElementById(id);
+let RDKit = null;
+let viewer = null;
+let current3D = null;           // {sdf, label}
+let renderToken = 0;
+const cache3D = new Map();
+
+/* ---------------- Helpers ---------------- */
+function setStatus(msg, isErr){ const s = $("status"); s.textContent = msg || ""; s.className = "note" + (isErr ? " err" : ""); }
+
+function download(filename, text, type){
+  const blob = new Blob([text], {type: type || "text/plain"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+const csvCell = v => '"' + String(v).replace(/"/g, '""') + '"';
+
+function formulaFromMolblock(block){
+  const lines = block.split("\n");
+  const n = parseInt(lines[3].slice(0, 3), 10);
+  const counts = {};
+  for (let i = 4; i < 4 + n; i++){
+    const sym = lines[i].slice(31, 34).trim();
+    counts[sym] = (counts[sym] || 0) + 1;
+  }
+  const order = Object.keys(counts).filter(k => k !== "C" && k !== "H").sort();
+  const seq = (counts.C ? ["C"] : []).concat(counts.H ? ["H"] : [], order);
+  return seq.map(k => k + (counts[k] > 1 ? counts[k] : "")).join("");
+}
+
+function round(x, d){ return Math.round(x * 10 ** d) / 10 ** d; }
+
+/* ---------------- Calculations (RDKit.js) ---------------- */
+function calcProps(smi){
+  const mol = RDKit.get_mol(smi);
+  if (!mol || !mol.is_valid()){ if (mol) mol.delete(); return null; }
+  try {
+    const d = JSON.parse(mol.get_descriptors());
+    let formula = "n/a";
+    try { formula = formulaFromMolblock(mol.add_hs()); } catch(e){}
+    const mw = d.amw, logp = d.CrippenClogP, hbd = d.NumHBD, hba = d.NumHBA;
+    return {
+      "Molecular formula": formula,
+      "Molecular weight (g/mol)": round(mw, 2),
+      "Exact mass": round(d.exactmw, 4),
+      "LogP (Crippen)": round(logp, 2),
+      "TPSA (A^2)": round(d.TPSA, 2),
+      "H-bond donors": hbd,
+      "H-bond acceptors": hba,
+      "Rotatable bonds": d.NumRotatableBonds,
+      "Heavy atoms": d.NumHeavyAtoms,
+      "Rings": d.NumRings,
+      "Aromatic rings": d.NumAromaticRings,
+      "Stereocentres": d.NumAtomStereoCenters,
+      "Lipinski violations": (mw > 500) + (logp > 5) + (hbd > 5) + (hba > 10)
+    };
+  } finally { mol.delete(); }
+}
+
+function getIdentifiers(smi){
+  const mol = RDKit.get_mol(smi);
+  const out = {};
+  try {
+    out["Isomeric SMILES"] = mol.get_smiles();
+    try { out["Canonical SMILES"] = mol.get_smiles(JSON.stringify({isomericSmiles:false})); }
+    catch(e){ out["Canonical SMILES"] = out["Isomeric SMILES"]; }
+    try {
+      const inchi = mol.get_inchi();
+      out["InChI"] = inchi;
+      out["InChIKey"] = RDKit.get_inchikey_for_inchi(inchi);
+    } catch(e){ out["InChI"] = "not available in this RDKit.js build"; out["InChIKey"] = "not available"; }
+  } finally { mol.delete(); }
+  return out;
+}
+
+/* ---------------- 2D view ---------------- */
+let last2dSvg = "";
+function draw2D(smi){
+  const mol = RDKit.get_mol(smi);
+  const size = parseInt($("size").value, 10);
+  try {
+    last2dSvg = mol.get_svg_with_highlights(JSON.stringify({
+      width: size, height: size, addAtomIndices: $("atomIdx").checked
+    }));
+    $("v2d").innerHTML = last2dSvg;
+  } finally { mol.delete(); }
+}
+
+/* ---------------- 3D view ---------------- */
+async function fetchPubChem3D(name, smi){
+  const key = name ? "n:" + name : "s:" + smi;
+  if (cache3D.has(key)) return cache3D.get(key);
+  const base = PUG;
+  let res;
+  if (name){
+    res = await fetch(base + "name/" + encodeURIComponent(name) + "/SDF?record_type=3d");
+  } else {
+    res = await fetch(base + "smiles/SDF?record_type=3d", {
+      method: "POST",
+      headers: {"Content-Type": "application/x-www-form-urlencoded"},
+      body: "smiles=" + encodeURIComponent(smi)
+    });
+  }
+  if (!res.ok) throw new Error("PubChem has no 3D record (" + res.status + ")");
+  const sdf = await res.text();
+  cache3D.set(key, sdf);
+  return sdf;
+}
+
+function style3D(){
+  const st = $("style").value;
+  const colour = $("color").value === "single" ? {color: "#0F6B6B"} : {colorscheme: "Jmol"};
+  const s = st === "stick" ? {stick: {...colour}}
+          : st === "sphere" ? {sphere: {scale: 0.3, ...colour}}
+          : st === "line" ? {line: {...colour}}
+          : {stick: {radius: 0.15, ...colour}, sphere: {scale: 0.25, ...colour}};
+  return s;
+}
+
+function show3D(sdf, format){
+  if (!viewer){
+    viewer = $3Dmol.createViewer($("v3d"), {backgroundColor: "white"});
+  }
+  viewer.removeAllModels();
+  viewer.addModel(sdf, format);
+  viewer.setStyle({}, style3D());
+  viewer.zoomTo();
+  viewer.render();
+  viewer.spin($("spin").checked);
+}
+
+async function update3D(name, smi, token){
+  const note = $("note3d"), dl = $("dl3d");
+  note.className = "note"; note.textContent = "Loading 3D structure…";
+  dl.disabled = true; current3D = null;
+  const preset = name && COMPOUNDS[name] && smi === COMPOUNDS[name].smiles ? COMPOUNDS[name].pubchem : null;
+  try {
+    const sdf = await fetchPubChem3D(preset, smi);
+    if (token !== renderToken) return;
+    show3D(sdf, "sdf");
+    current3D = {sdf, label: "3d"};
+    note.textContent = "3D conformer from PubChem. Drag to rotate, scroll to zoom.";
+    dl.disabled = false;
+  } catch (err){
+    if (token !== renderToken) return;
+    // Fallback: flat 2D layout from RDKit so something is always shown
+    const mol = RDKit.get_mol(smi);
+    try {
+      const block = mol.get_molblock();
+      show3D(block, "sdf");
+      current3D = {sdf: block, label: "2d-layout"};
+      note.className = "note err";
+      note.textContent = "No 3D conformer available (" + err.message + "). Showing a flat 2D layout instead.";
+      dl.disabled = false;
+    } finally { mol.delete(); }
+  }
+}
+
+/* ---------------- Tables / report ---------------- */
+function renderProps(props){
+  const t = $("propsTable");
+  t.innerHTML = "<thead><tr><th>Property</th><th>Value</th></tr></thead><tbody>" +
+    Object.entries(props).map(([k, v]) => `<tr><td>${k}</td><td>${v}</td></tr>`).join("") + "</tbody>";
+}
+
+let allProps = {};
+const MW = "Molecular weight (g/mol)";
+function selNames(){ return Object.keys(COMPOUNDS).filter(n => selected.has(n)); }
+function renderPicker(){
+  $("picker").innerHTML = Object.keys(COMPOUNDS).map(n =>
+    `<label class="chip"><input type="checkbox" value="${esc(n)}" ${selected.has(n) ? "checked" : ""}> ${esc(n)}</label>`).join("");
+}
+function renderComparison(){
+  const names = selNames();
+  allProps = {};
+  names.forEach(n => { const r = calcProps(COMPOUNDS[n].smiles); if (r) allProps[n] = r; });
+  const ok = names.filter(n => allProps[n]);
+  if (!ok.length){ $("cmpTable").innerHTML = "<tbody><tr><td>Tick at least one compound above.</td></tr></tbody>"; $("bars").innerHTML = ""; return; }
+  const keys = Object.keys(allProps[ok[0]]);
+  $("cmpTable").innerHTML = "<thead><tr><th>Property</th>" + ok.map(n => `<th>${esc(n)}</th>`).join("") + "</tr></thead><tbody>" +
+    keys.map(k => `<tr><td>${k}</td>${ok.map(n => `<td>${allProps[n][k]}</td>`).join("")}</tr>`).join("") + "</tbody>";
+  const max = Math.max(...ok.map(n => allProps[n][MW]));
+  $("bars").innerHTML = "<h3>Molecular weight (g/mol)</h3>" + ok.map(n => {
+    const w = allProps[n][MW];
+    return `<div class="bar"><span>${esc(n)}</span><i style="width:${(w / max * 100).toFixed(1)}%"></i><span>${w}</span></div>`;
+  }).join("");
+}
+
+function describe(n, pr){
+  const mw = pr[MW], lp = pr["LogP (Crippen)"];
+  const size = mw < 250 ? "small" : mw < 500 ? "medium-sized" : "large";
+  const pol = lp > 3 ? "lipophilic" : lp < 0 ? "hydrophilic" : "moderately lipophilic";
+  const role = mw > 500 ? "its size suggests it acts mainly at the skin surface"
+    : lp > 3 ? "its lipophilicity suits oil phases and penetration of the stratum corneum"
+    : lp < 0 ? "its polarity suits water-phase hydration" : "its balanced polarity suits both phases";
+  return `- **${n}** (MW ${mw}, LogP ${lp}, TPSA ${pr["TPSA (A^2)"]}) is a ${size}, ${pol} molecule with ${pr["Lipinski violations"]} Lipinski violation(s); ${role}.`;
+}
+
+function buildReport(){
+  renderComparison();
+  const names = Object.keys(allProps), p = allProps;
+  if (!names.length) return "Tick at least one compound in the Comparison tab to build a report.";
+  let table = "| Property | " + names.join(" | ") + " |\n|---|" + "---|".repeat(names.length) + "\n";
+  Object.keys(p[names[0]]).forEach(k => { table += `| ${k} | ` + names.map(n => p[n][k]).join(" | ") + " |\n"; });
+  let comp = "";
+  names.forEach((n, i) => {
+    const d = COMPOUNDS[n], pr = p[n];
+    comp += `### 2.${i + 1} ${n}\n${d.intro} Source: ${d.source}. Cosmetic role: ${d.use}.\n\n` +
+      `- Formula: ${pr["Molecular formula"]}; MW: ${pr[MW]} g/mol\n` +
+      `- LogP: ${pr["LogP (Crippen)"]}; TPSA: ${pr["TPSA (A^2)"]} A^2; HBD/HBA: ${pr["H-bond donors"]}/${pr["H-bond acceptors"]}\n` +
+      `- SMILES: \`${d.smiles}\`\n\n`;
+  });
+  const date = new Date().toLocaleDateString("en-GB", {day: "2-digit", month: "long", year: "numeric"});
+  const list = names.join(", ");
+  return `# Computational Study of ${names.length} Cosmetic Ingredient${names.length > 1 ? "s" : ""}: ${list}
+**Student(s):** ${$("student").value || "____"}  
+**Course / Institute:** ${$("course").value || "____"}  
+**Supervisor:** ${$("guide").value || "____"}  
+**Date:** ${date}
+
+## 1. Aim
+To obtain structural identifiers, 2D/3D structures and physicochemical properties of ${list} using cheminformatics tools, and to relate them to cosmetic function.
+
+## 2. Introduction
+${comp}
+## 3. Tools and Methodology
+- RDKit.js (descriptors, 2D depiction), 3Dmol.js (3D viewer) and PubChem (3D conformers and compound lookup), in a static web page.
+- Steps: (1) parse SMILES; (2) compute formula and descriptors; (3) draw 2D structure; (4) load a 3D conformer and display it; (5) apply Lipinski's rule of five; (6) compare compounds.
+
+## 4. Results
+${table}
+## 5. Discussion
+${names.map(n => describe(n, p[n])).join("\n")}
+
+## 6. Conclusion
+The computed descriptors show how size, lipophilicity and polarity differ across these ingredients and help explain their roles in formulations. Values are computational estimates and should be compared with experimental data.
+
+## 7. References
+1. PubChem compound database (https://pubchem.ncbi.nlm.nih.gov).
+2. RDKit: Open-source cheminformatics (https://www.rdkit.org).
+3. Lipinski C.A. et al. (1997). Adv Drug Deliv Rev, 23, 3-25.
+`;
+}
+
+function buildSelect(){
+  const sel = $("compound"), cur = sel.value;
+  sel.innerHTML = "";
+  const groups = {};
+  Object.keys(COMPOUNDS).forEach(n => (groups[COMPOUNDS[n].cat] = groups[COMPOUNDS[n].cat] || []).push(n));
+  Object.keys(groups).forEach(c => {
+    const og = document.createElement("optgroup"); og.label = c;
+    groups[c].forEach(n => og.appendChild(new Option(n, n)));
+    sel.appendChild(og);
+  });
+  if (cur && COMPOUNDS[cur]) sel.value = cur;
+}
+
+async function addCompound(){
+  const q = $("search").value.trim();
+  if (!q) return;
+  setStatus("Looking up \u201c" + q + "\u201d on PubChem…");
+  try {
+    const r = await fetch(PUG + "name/" + encodeURIComponent(q) + "/property/Title,IsomericSMILES/JSON");
+    if (!r.ok) throw new Error("not found");
+    const p = (await r.json()).PropertyTable.Properties[0];
+    const smi = p.SMILES || p.IsomericSMILES || p.ConnectivitySMILES;
+    let name = String(p.Title || q); name = name.charAt(0).toUpperCase() + name.slice(1);
+    if (!COMPOUNDS[name]) COMPOUNDS[name] = {cat: "Added from PubChem", pubchem: q, smiles: smi,
+      source: "PubChem (CID " + p.CID + ")", use: "User-added compound", intro: name + " was added from PubChem."};
+    selected.add(name); buildSelect(); renderPicker();
+    $("compound").value = name; $("smiles").value = COMPOUNDS[name].smiles; $("search").value = "";
+    refresh();
+  } catch (e){
+    setStatus("Could not find \u201c" + q + "\u201d on PubChem. Check the spelling, or paste a SMILES instead.", true);
+  }
+}
+
+/* ---------------- Main render ---------------- */
+let currentProps = null, currentName = "";
+
+function refresh(){
+  const token = ++renderToken;
+  const name = $("compound").value;
+  const smi = $("smiles").value.trim();
+  const mol = RDKit.get_mol(smi);
+  const valid = mol && mol.is_valid();
+  if (mol) mol.delete();
+  if (!valid){ setStatus("Invalid SMILES. Please check the notation.", true); return; }
+  setStatus("");
+  currentName = name;
+
+  const d = COMPOUNDS[name];
+  const isPreset = smi === d.smiles;
+  $("title").textContent = isPreset ? name : name + " (custom SMILES)";
+  currentProps = calcProps(smi);
+  $("facts").innerHTML =
+    `<b>Category:</b> ${esc(d.cat)}<br><b>Source:</b> ${d.source}<br><b>Cosmetic use:</b> ${d.use}<br>` +
+    `<b>Formula:</b> ${currentProps["Molecular formula"]} &nbsp; <b>Molecular weight:</b> ${currentProps["Molecular weight (g/mol)"]} g/mol`;
+
+  draw2D(smi);
+  renderProps(currentProps);
+
+  const ids = getIdentifiers(smi);
+  $("idsBody").innerHTML = "<h2>" + name + "</h2>" + Object.entries(ids)
+    .map(([k, v]) => `<div class="id-row"><span>${k}</span><code class="block"></code></div>`).join("");
+  $("idsBody").querySelectorAll("code.block").forEach((el, i) => el.textContent = Object.values(ids)[i]);
+
+  update3D(name, smi, token);
+}
+
+function restyle3D(){
+  if (!viewer || !current3D) return;
+  viewer.setStyle({}, style3D());
+  viewer.render();
+  viewer.spin($("spin").checked);
+}
+
+function setupTabs(){
+  document.querySelectorAll(".tabs button").forEach(b => b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach(x => x.setAttribute("aria-selected", x === b));
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.id === "tab-" + b.dataset.tab));
+    if (b.dataset.tab === "structure" && viewer){ viewer.resize(); viewer.render(); }
+    if (b.dataset.tab === "report") $("reportBody").textContent = buildReport();
+  }));
+}
+
+async function start(){
+  const sel = $("compound");
+  buildSelect();
+  $("smiles").value = COMPOUNDS[sel.value].smiles;
+  setupTabs();
+
+  if (typeof initRDKitModule !== "function" || typeof $3Dmol === "undefined"){
+    setStatus("Could not load the chemistry libraries. Check your internet connection and the browser console (F12).", true);
+    return;
+  }
+  try {
+    RDKit = await initRDKitModule({locateFile: f => RDKIT_BASE + f});
+  } catch (e){
+    setStatus("RDKit failed to start: " + e.message, true); return;
+  }
+
+  renderPicker(); renderComparison();
+  $("addBtn").addEventListener("click", addCompound);
+  $("search").addEventListener("keydown", e => { if (e.key === "Enter") addCompound(); });
+  $("picker").addEventListener("change", e => {
+    e.target.checked ? selected.add(e.target.value) : selected.delete(e.target.value);
+    renderComparison(); $("reportBody").textContent = buildReport();
+  });
+  $("selAll").addEventListener("click", () => { Object.keys(COMPOUNDS).forEach(n => selected.add(n)); renderPicker(); renderComparison(); });
+  $("selNone").addEventListener("click", () => { selected.clear(); renderPicker(); renderComparison(); });
+
+  sel.addEventListener("change", () => { $("smiles").value = COMPOUNDS[sel.value].smiles; refresh(); });
+  let t; $("smiles").addEventListener("input", () => { clearTimeout(t); t = setTimeout(refresh, 500); });
+  $("size").addEventListener("input", () => { $("sizeVal").textContent = $("size").value; if (RDKit) draw2D($("smiles").value.trim()); });
+  $("atomIdx").addEventListener("change", () => draw2D($("smiles").value.trim()));
+  ["style", "color", "spin"].forEach(id => $(id).addEventListener("change", restyle3D));
+  ["student", "course", "guide"].forEach(id => $(id).addEventListener("input", () => $("reportBody").textContent = buildReport()));
+
+  $("dl2d").addEventListener("click", () => download(currentName + "_2d.svg", last2dSvg, "image/svg+xml"));
+  $("dl3d").addEventListener("click", () => current3D && download(currentName + "_" + current3D.label + ".sdf", current3D.sdf));
+  $("dlProps").addEventListener("click", () => download(currentName + "_properties.csv",
+    "Property,Value\n" + Object.entries(currentProps).map(([k, v]) => csvCell(k) + "," + csvCell(v)).join("\n"), "text/csv"));
+  $("dlCmp").addEventListener("click", () => {
+    const names = Object.keys(allProps);
+    if (!names.length) return;
+    const rows = ["Property," + names.map(csvCell).join(",")].concat(
+      Object.keys(allProps[names[0]]).map(k => csvCell(k) + "," + names.map(n => csvCell(allProps[n][k])).join(",")));
+    download("comparison.csv", rows.join("\n"), "text/csv");
+  });
+  $("dlReport").addEventListener("click", () => download("cosmetic_compounds_report.md", buildReport(), "text/markdown"));
+
+  refresh();
+}
+start();
+</script>
+</body>
+</html>
